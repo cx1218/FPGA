@@ -1,0 +1,52 @@
+module top(
+    input           clk     ,
+    input           rst_n   ,
+    inout           dq      ,
+    input           key     ,//从端口导入进来的需要消抖的按键
+    output          tx      ,
+    output  [5:0]   sel     ,
+    output  [7:0]   dig 
+);
+    wire                    key_out     ;
+    wire    [15:0]          t_data      ;
+    wire    [23:0]          dis_data    ;
+    wire    [7:0 ]          t_data_uart ;//通过串口要发送到pc电脑端的
+
+    assign  t_data_uart =  key_out ? {1'b0,t_data[10:4]}: t_data_uart ; //按键有效就转换成给uart
+
+    ds18b20_driver      inst_ds18b20_driver(
+        .clk                (clk        ),
+        .rst_n              (rst_n      ),
+        .dq                 (dq         ),
+        .t_data             (t_data     ) 
+    );
+
+    ctrl                inst_ctrl(
+        .t_data             (t_data     ),
+        .dis_data           (dis_data   ) //处理好的数据   
+    );
+
+    sel_driver          inst_sel_driver(
+        .clk                (clk        ) ,
+        .rst_n              (rst_n      ) ,
+        .dis_data           (dis_data   ) ,
+        .sel                (sel        ) ,
+        .dig                (dig        )  
+    );
+
+    FSM_KEY             inst_FSM_KEY(
+        .clk                (clk        ),
+        .rst_n              (rst_n      ),
+        .key_in             (key_in     ),
+        .key_out            (key_out    )
+    );
+
+    uart_tx             inst_uart_tx(
+        .clk                (clk        ),
+        .rst_n              (rst_n      ),
+        .din                (t_data_uart),
+        .din_vld            (key_out    ),
+        .dout               (tx         )
+    );//没有消抖的时候0有效，消抖之后是1有效
+
+endmodule
